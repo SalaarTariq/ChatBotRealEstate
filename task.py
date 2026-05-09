@@ -18,5 +18,3 @@ All findings must be factual, verifiable, and presented in a professional, easy-
 """,
     agent=Property_Researcher,
     output_file="property_research_report.md")
-
-
