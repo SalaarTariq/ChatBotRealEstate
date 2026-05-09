@@ -10,6 +10,7 @@ crewai = "*"
 crewai-tools = "*"
 langchain-groq = "*"
 litellm = "*"
+python-dotenv = "*"
 
 [dev-packages]
 

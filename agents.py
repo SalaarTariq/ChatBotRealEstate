@@ -1,8 +1,9 @@
-
+from dotenv import load_dotenv
 from langchain_groq import ChatGroq
-import os
 from crewai import Agent
 from tools import google_search_tool
+
+load_dotenv()
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     temperature=0.3,
