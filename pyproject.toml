@@ -1,0 +1,16 @@
+[project]
+name = "chatbotrealestate"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.13.5",
+    "crewai>=1.14.4",
+    "crewai-tools>=1.14.4",
+    "google-generativeai>=0.8.6",
+    "langchain-google-genai>=4.2.2",
+    "langchain-groq>=1.1.2",
+    "litellm>=1.83.0",
+    "python-dotenv>=1.2.2",
+    "requests>=2.33.1",
+]
