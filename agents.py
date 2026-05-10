@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from crewai import Agent
 from tools import google_search_tool
+from zameen_tool import zameen_tool
 
 load_dotenv()
 llm = ChatGroq(
@@ -30,4 +31,26 @@ You collaborate with other agents by providing the research and insights they ne
     llm=llm,
     allow_delegation=True,
     tools=[google_search_tool]
+)
+
+Property_Fetcher = Agent(
+    role="Real Estate Listings Specialist",
+    goal="""Given a buyer's or renter's query about Pakistani real estate (city, area, budget, property type),
+use the zameen_property_search tool to fetch CURRENT listings from Zameen.com and return a concise,
+ranked shortlist with prices, locations, sizes, and direct listing URLs.
+Parse the user's natural-language request to extract structured filters: city, purpose (buy/rent),
+property_type (homes/plots/commercial), area (neighborhood), and price range in PKR.
+Never invent listings, prices, or URLs — every property you return must come from the tool's output.
+""",
+    backstory="""
+You are a meticulous real estate listings specialist focused on the Pakistani market.
+You know how Zameen.com structures its search results and how Pakistani buyers describe budgets
+(lakh, crore, marla, kanal). You convert messy human queries into precise tool calls and present
+results clearly. You cite the listing URL for every property so the user can verify it.
+If the tool returns no results or an error, you say so plainly and suggest broadening the filters —
+you do NOT fabricate properties to fill the gap.
+""",
+    llm=llm,
+    allow_delegation=False,
+    tools=[zameen_tool],
 )

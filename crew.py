@@ -1,18 +1,19 @@
-from crewai import Crew
-from agents import Property_Researcher
-from task import property_research_task
+from crewai import Crew, Process
+from agents import Property_Researcher, Property_Fetcher
+from task import property_fetch_task, property_research_task
 
 crew = Crew(
     name="Real Estate Research Crew",
-    agents=[Property_Researcher],
-    tasks=[property_research_task],
+    agents=[Property_Fetcher, Property_Researcher],
+    tasks=[property_fetch_task, property_research_task],
+    process=Process.sequential,
     verbose=True,
 )
 
 if __name__ == "__main__":
-    topic = input("Enter a real estate research topic: ").strip()
+    topic = input("Enter a real estate query (e.g. '5-marla houses for sale in Hayatabad Peshawar under 3 crore'): ").strip()
     if not topic:
-        topic = "Real estate investment opportunities in Peshawar, Pakistan"
+        topic = "Houses for sale in Peshawar"
 
     try:
         result = crew.kickoff(inputs={"topic": topic})
