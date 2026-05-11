@@ -33,8 +33,8 @@ Every listing must include a working Zameen.com URL from the tool output.
 
 property_research_task = Task(
     name="Property Research Task",
-    description="""Conduct in-depth, data-driven research on real estate opportunities and investment locations in the city of Peshawar Pakistan.
-Analyze market trends, property values, rental yields, demographics, economic indicators, and risk factors.
+    description="""Conduct in-depth, data-driven research on real estate opportunities and investment locations relevant to the user's query: {topic}.
+Analyze market trends, property values, rental yields, demographics, economic indicators, and risk factors for the city and area implied by the query.
 Identify key investment opportunities, potential challenges, and overall market outlook.
 Produce clear, structured, and evidence-backed findings that can guide informed investment decisions.
 """,
