@@ -8,7 +8,7 @@ load_dotenv()
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     temperature=0.3,
-    max_output_tokens=1024,
+    max_tokens=1024,
     max_retries=3
 )
 
