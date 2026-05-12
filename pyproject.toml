@@ -7,6 +7,7 @@ dependencies = [
     "beautifulsoup4>=4.13.5",
     "crewai>=1.14.4",
     "crewai-tools>=1.14.4",
+    "flask>=3.0.0",
     "google-generativeai>=0.8.6",
     "langchain-google-genai>=4.2.2",
     "langchain-groq>=1.1.2",
