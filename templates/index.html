@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PropertyAI — Pakistani Real Estate Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">PA</span>
+        <span class="brand-text">Property<strong>AI</strong></span>
+      </a>
+      <nav class="nav">
+        <a href="#search">Search</a>
+        <a href="#results">Listings</a>
+        <a href="#research">Research</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero" id="search">
+    <div class="container hero-inner">
+      <span class="eyebrow">AI-powered property research</span>
+      <h1>Find the right home in Pakistan,<br/><span>backed by live market data.</span></h1>
+      <p class="lede">Describe what you want in plain English. Our agents fetch real listings from Zameen.com and a senior research analyst breaks down the market for you.</p>
+
+      <form id="search-form" class="search-card">
+        <div class="search-row primary">
+          <label class="field grow">
+            <span>What are you looking for?</span>
+            <input id="query" name="query" type="text" placeholder="e.g. 5-marla houses for sale in Hayatabad Peshawar under 3 crore" />
+          </label>
+          <button type="submit" class="btn-primary" id="search-btn">
+            <span class="btn-label">Search</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="search-row chips">
+          <span class="chip-label">Quick filters:</span>
+          <button type="button" class="chip" data-q="Houses for sale in Peshawar">Houses · Peshawar</button>
+          <button type="button" class="chip" data-q="5-marla houses for sale in Hayatabad Peshawar under 3 crore">5-marla · Hayatabad</button>
+          <button type="button" class="chip" data-q="Apartments for rent in DHA Lahore">Rent · DHA Lahore</button>
+          <button type="button" class="chip" data-q="Commercial plots for sale in Bahria Town Karachi">Commercial · Karachi</button>
+        </div>
+      </form>
+
+      <div class="meta-strip">
+        <div><strong>8</strong><span>Cities covered</span></div>
+        <div><strong>Live</strong><span>Zameen.com data</span></div>
+        <div><strong>2 AI</strong><span>Agents working</span></div>
+      </div>
+    </div>
+  </section>
+
+  <main class="container main">
+    <section id="status" class="status-panel hidden">
+      <div class="status-step" data-step="fetch">
+        <div class="step-dot"></div>
+        <div class="step-body">
+          <strong>Fetching listings</strong>
+          <span>Querying Zameen.com for matching properties…</span>
+        </div>
+      </div>
+      <div class="status-step" data-step="research">
+        <div class="step-dot"></div>
+        <div class="step-body">
+          <strong>Analyzing market</strong>
+          <span>Senior analyst preparing the research report…</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="error" class="error-panel hidden"></section>
+
+    <section id="results" class="results hidden">
+      <div class="section-head">
+        <h2>Matching listings</h2>
+        <a id="source-link" href="#" target="_blank" rel="noopener" class="source-link hidden">View source on Zameen ↗</a>
+      </div>
+      <div id="listing-grid" class="listing-grid"></div>
+      <p id="no-listings" class="empty hidden">No listings parsed. The agent may have returned a fallback. Check the research panel below.</p>
+    </section>
+
+    <section id="research" class="research hidden">
+      <div class="section-head">
+        <h2>Market research report</h2>
+      </div>
+      <article id="research-body" class="research-body"></article>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>© PropertyAI · CrewAI + Zameen.com</span>
+      <span>Built for the Pakistani real estate market</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
