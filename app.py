@@ -1,15 +1,12 @@
 import os
 import re
 import traceback
-from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request
 
 from crew import crew
 
-BASE_DIR = Path(__file__).parent
-LISTINGS_FILE = BASE_DIR / "property_listings.md"
-RESEARCH_FILE = BASE_DIR / "property_research_report.md"
+MAX_TOPIC_LEN = 300
 
 app = Flask(__name__)
 
@@ -39,9 +36,13 @@ def _parse_listings_markdown(md_text: str):
         if not re.match(r"^\d+$", cells[0]):
             continue
 
-        url = cells[7]
-        url_match = re.search(r"https?://\S+", url)
-        clean_url = url_match.group(0).rstrip(")") if url_match else url
+        url_cell = cells[7]
+        md_link = re.search(r"\[[^\]]*\]\((https?://[^\s)]+)\)", url_cell)
+        if md_link:
+            clean_url = md_link.group(1)
+        else:
+            url_match = re.search(r"https?://\S+", url_cell)
+            clean_url = url_match.group(0).rstrip(")") if url_match else url_cell
 
         listings.append({
             "rank": cells[0],
@@ -57,12 +58,6 @@ def _parse_listings_markdown(md_text: str):
     return listings, source_url
 
 
-def _read_file(path: Path) -> str:
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return ""
-
-
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -74,16 +69,13 @@ def search():
     topic = (payload.get("topic") or "").strip()
     if not topic:
         return jsonify({"error": "Please enter a search query."}), 400
-
-    # Wipe stale output files so we know we got fresh results.
-    for f in (LISTINGS_FILE, RESEARCH_FILE):
-        try:
-            f.unlink()
-        except FileNotFoundError:
-            pass
+    if len(topic) > MAX_TOPIC_LEN:
+        return jsonify({
+            "error": f"Query is too long (max {MAX_TOPIC_LEN} characters).",
+        }), 400
 
     try:
-        crew.kickoff(inputs={"topic": topic})
+        result = crew.kickoff(inputs={"topic": topic})
     except Exception as e:
         traceback.print_exc()
         return jsonify({
@@ -91,8 +83,9 @@ def search():
             "detail": str(e),
         }), 500
 
-    listings_md = _read_file(LISTINGS_FILE)
-    research_md = _read_file(RESEARCH_FILE)
+    task_outputs = list(getattr(result, "tasks_output", []) or [])
+    listings_md = task_outputs[0].raw if len(task_outputs) > 0 else ""
+    research_md = task_outputs[1].raw if len(task_outputs) > 1 else ""
     listings, source_url = _parse_listings_markdown(listings_md)
 
     return jsonify({
@@ -106,4 +99,5 @@ def search():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="0.0.0.0", port=port, debug=debug)

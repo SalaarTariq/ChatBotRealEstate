@@ -28,7 +28,6 @@ relaxing the filters.
 Every listing must include a working Zameen.com URL from the tool output.
 """,
     agent=Property_Fetcher,
-    output_file="property_listings.md",
 )
 
 property_research_task = Task(
@@ -47,5 +46,4 @@ Produce clear, structured, and evidence-backed findings that can guide informed 
 All findings must be factual, verifiable, and presented in a professional, easy-to-digest format.
 """,
     agent=Property_Researcher,
-    output_file="property_research_report.md",
 )
