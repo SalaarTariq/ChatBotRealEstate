@@ -62,12 +62,25 @@
     }
   };
 
+  if (window.marked && typeof window.marked.setOptions === "function") {
+    window.marked.setOptions({ mangle: false, headerIds: false });
+  }
+
+  const sanitizeRenderedMarkdown = (html) =>
+    html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+      .replace(/\son\w+\s*=\s*'[^']*'/gi, "");
+
   const renderResearch = (md) => {
     if (!md || !md.trim()) {
       researchSection.classList.add("hidden");
       return;
     }
-    researchBody.innerHTML = window.marked ? window.marked.parse(md) : `<pre>${escapeHtml(md)}</pre>`;
+    const html = window.marked
+      ? sanitizeRenderedMarkdown(window.marked.parse(md))
+      : `<pre>${escapeHtml(md)}</pre>`;
+    researchBody.innerHTML = html;
     researchSection.classList.remove("hidden");
   };
 
@@ -106,6 +119,8 @@
     errorPanel.classList.remove("hidden");
   };
 
+  let currentController = null;
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const topic = queryInput.value.trim();
@@ -114,13 +129,21 @@
       return;
     }
 
+    if (currentController) {
+      currentController.abort();
+    }
+    const controller = new AbortController();
+    currentController = controller;
+
     setLoading(true);
     try {
       const resp = await fetch("/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       const data = await resp.json();
       if (!resp.ok) {
         showError(data.error || "Something went wrong while running the agents.");
@@ -131,9 +154,13 @@
       resultsSection.classList.remove("hidden");
       resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
+      if (err.name === "AbortError") return;
       showError("Network error: " + err.message);
     } finally {
-      setLoading(false);
+      if (currentController === controller) {
+        currentController = null;
+        setLoading(false);
+      }
     }
   });
 })();
