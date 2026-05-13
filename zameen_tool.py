@@ -1,3 +1,4 @@
+import time
 from typing import Optional, Type
 from urllib.parse import urlencode
 
@@ -31,8 +32,15 @@ TYPE_PATH = {
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 )
+
+
+def _escape_cell(value: str) -> str:
+    """Make a string safe for use inside a markdown table cell."""
+    if not value:
+        return ""
+    return value.replace("|", "\\|").replace("\n", " ").replace("\r", " ").strip()
 
 
 class ZameenSearchInput(BaseModel):
@@ -124,8 +132,9 @@ def _format_markdown(listings, search_url: str) -> str:
              "|---|---|---|---|---|---|---|---|"]
     for i, lst in enumerate(listings, 1):
         lines.append(
-            f"| {i} | {lst['title']} | {lst['price']} | {lst['location']} | "
-            f"{lst['beds']} | {lst['baths']} | {lst['area']} | {lst['url']} |"
+            f"| {i} | {_escape_cell(lst['title'])} | {_escape_cell(lst['price'])} | "
+            f"{_escape_cell(lst['location'])} | {_escape_cell(lst['beds'])} | "
+            f"{_escape_cell(lst['baths'])} | {_escape_cell(lst['area'])} | {lst['url']} |"
         )
     lines.append(f"\nSource: {search_url}")
     return "\n".join(lines)
@@ -144,25 +153,49 @@ class ZameenSearchTool(BaseTool):
     def _run(self, city: str, purpose: str = "buy", property_type: str = "homes",
              area: Optional[str] = None, min_price: Optional[int] = None,
              max_price: Optional[int] = None, limit: int = 10) -> str:
+        city = (city or "").strip().lower()
+        purpose = (purpose or "buy").strip().lower()
+        property_type = (property_type or "homes").strip().lower()
+
+        for name, value in (("min_price", min_price), ("max_price", max_price)):
+            if value is not None and (not isinstance(value, int) or value < 0):
+                return f"Invalid {name}: must be a non-negative integer in PKR."
+        if min_price is not None and max_price is not None and min_price > max_price:
+            min_price, max_price = max_price, min_price
+
+        try:
+            limit = max(1, min(int(limit), 25))
+        except (TypeError, ValueError):
+            limit = 10
+
         url = _build_url(city, purpose, property_type, min_price, max_price)
         if not url:
             supported = ", ".join(sorted(CITY_IDS))
             return f"City '{city}' is not supported yet. Supported cities: {supported}."
 
-        try:
-            resp = requests.get(
-                url,
-                headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
-                timeout=20,
-            )
-        except requests.RequestException as e:
-            return f"Failed to reach Zameen.com ({e}). Try again or visit: {url}"
+        headers = {"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"}
+        last_err = None
+        for attempt in range(2):
+            try:
+                resp = requests.get(url, headers=headers, timeout=20)
+            except requests.RequestException as e:
+                last_err = e
+                if attempt == 0:
+                    time.sleep(1.5)
+                    continue
+                return f"Failed to reach Zameen.com ({e}). Try again or visit: {url}"
 
-        if resp.status_code != 200:
+            if resp.status_code == 200:
+                listings = _parse_listings(resp.text, area, limit)
+                return _format_markdown(listings, url)
+
+            if 500 <= resp.status_code < 600 and attempt == 0:
+                time.sleep(1.5)
+                continue
+
             return f"Zameen returned HTTP {resp.status_code}. Visit: {url}"
 
-        listings = _parse_listings(resp.text, area, limit)
-        return _format_markdown(listings, url)
+        return f"Failed to reach Zameen.com ({last_err}). Try again or visit: {url}"
 
 
 zameen_tool = ZameenSearchTool()
