@@ -84,83 +84,134 @@
     researchSection.classList.remove("hidden");
   };
 
-  const setLoading = (loading) => {
-    if (loading) {
-      searchBtn.classList.add("loading");
-      searchBtn.disabled = true;
-      statusPanel.classList.remove("hidden");
-      stepFetch.classList.add("active");
-      stepFetch.classList.remove("done");
-      stepResearch.classList.remove("active", "done");
-      errorPanel.classList.add("hidden");
-      resultsSection.classList.add("hidden");
-      researchSection.classList.add("hidden");
+  const markStep = (step, state) => {
+    step.classList.remove("active", "done");
+    if (state) step.classList.add(state);
+  };
 
-      // After ~12s assume fetch is done and research is running.
-      window.__statusTimer = setTimeout(() => {
-        stepFetch.classList.remove("active");
-        stepFetch.classList.add("done");
-        stepResearch.classList.add("active");
-      }, 12000);
-    } else {
-      searchBtn.classList.remove("loading");
-      searchBtn.disabled = false;
-      clearTimeout(window.__statusTimer);
-      stepFetch.classList.add("done");
-      stepFetch.classList.remove("active");
-      stepResearch.classList.add("done");
-      stepResearch.classList.remove("active");
-      setTimeout(() => statusPanel.classList.add("hidden"), 1200);
-    }
+  const startLoading = () => {
+    searchBtn.classList.add("loading");
+    searchBtn.disabled = true;
+    statusPanel.classList.remove("hidden");
+    markStep(stepFetch, "active");
+    markStep(stepResearch, null);
+    errorPanel.classList.add("hidden");
+    resultsSection.classList.add("hidden");
+    researchSection.classList.add("hidden");
+  };
+
+  const stopLoading = () => {
+    searchBtn.classList.remove("loading");
+    searchBtn.disabled = false;
+    markStep(stepFetch, "done");
+    markStep(stepResearch, "done");
+    setTimeout(() => statusPanel.classList.add("hidden"), 1200);
   };
 
   const showError = (msg) => {
     errorPanel.textContent = msg;
     errorPanel.classList.remove("hidden");
+    statusPanel.classList.add("hidden");
+    searchBtn.classList.remove("loading");
+    searchBtn.disabled = false;
   };
 
-  let currentController = null;
+  const renderResult = (data) => {
+    renderListings(data.listings || [], data.source_url || "");
+    renderResearch(data.research_markdown || "");
 
-  form.addEventListener("submit", async (e) => {
+    // Cached badge in the section head.
+    const head = resultsSection.querySelector(".section-head");
+    let badge = head ? head.querySelector(".cached-badge") : null;
+    if (data.cached) {
+      if (!badge && head) {
+        badge = document.createElement("span");
+        badge.className = "cached-badge";
+        badge.textContent = "Cached";
+        head.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+
+    resultsSection.classList.remove("hidden");
+    resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  let currentSource = null;
+
+  const runStreamingSearch = (topic) => {
+    if (currentSource) {
+      currentSource.close();
+      currentSource = null;
+    }
+    startLoading();
+
+    const url = "/search/stream?topic=" + encodeURIComponent(topic);
+    const es = new EventSource(url);
+    currentSource = es;
+
+    let receivedResult = false;
+
+    const close = () => {
+      if (currentSource === es) currentSource = null;
+      es.close();
+    };
+
+    es.addEventListener("task_done", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.task === "fetch") {
+          markStep(stepFetch, "done");
+          markStep(stepResearch, "active");
+        } else if (data.task === "research") {
+          markStep(stepResearch, "done");
+        }
+      } catch (_) {}
+    });
+
+    es.addEventListener("result", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        receivedResult = true;
+        renderResult(data);
+      } catch (err) {
+        showError("Failed to parse result: " + err.message);
+      }
+    });
+
+    es.addEventListener("done", () => {
+      stopLoading();
+      close();
+    });
+
+    es.addEventListener("error", (e) => {
+      // SSE 'error' fires both on server-sent error events (with data) and
+      // transport-level disconnects (no data, no readyState close).
+      if (e.data) {
+        try {
+          const data = JSON.parse(e.data);
+          showError(data.error || "Something went wrong.");
+        } catch (_) {
+          showError("Server error.");
+        }
+        close();
+        return;
+      }
+      if (es.readyState === EventSource.CLOSED) {
+        if (!receivedResult) showError("Connection closed before results arrived.");
+        close();
+      }
+    });
+  };
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
     const topic = queryInput.value.trim();
     if (!topic) {
       queryInput.focus();
       return;
     }
-
-    if (currentController) {
-      currentController.abort();
-    }
-    const controller = new AbortController();
-    currentController = controller;
-
-    setLoading(true);
-    try {
-      const resp = await fetch("/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      const data = await resp.json();
-      if (!resp.ok) {
-        showError(data.error || "Something went wrong while running the agents.");
-        return;
-      }
-      renderListings(data.listings || [], data.source_url || "");
-      renderResearch(data.research_markdown || "");
-      resultsSection.classList.remove("hidden");
-      resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (err) {
-      if (err.name === "AbortError") return;
-      showError("Network error: " + err.message);
-    } finally {
-      if (currentController === controller) {
-        currentController = null;
-        setLoading(false);
-      }
-    }
+    runStreamingSearch(topic);
   });
 })();
