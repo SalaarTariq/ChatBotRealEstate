@@ -1,5 +1,36 @@
+import threading
+
 from crewai import Task
 from agents import Property_Researcher, Property_Fetcher
+
+_progress_lock = threading.Lock()
+_progress_callbacks: dict[int, "object"] = {}
+
+
+def set_task_progress_callback_for_thread(thread_id: int, callback) -> None:
+    """Register a callback keyed by the thread id that will run the crew.
+
+    The callback receives (task_index, task_output). Pass None to clear.
+    """
+    with _progress_lock:
+        if callback is None:
+            _progress_callbacks.pop(thread_id, None)
+        else:
+            _progress_callbacks[thread_id] = callback
+
+
+def _make_task_callback(task_index: int):
+    def _cb(task_output):
+        with _progress_lock:
+            cb = _progress_callbacks.get(threading.get_ident())
+        if cb is None:
+            return
+        try:
+            cb(task_index, task_output)
+        except Exception:
+            pass
+    return _cb
+
 
 property_fetch_task = Task(
     name="Property Fetch Task",
@@ -28,6 +59,7 @@ relaxing the filters.
 Every listing must include a working Zameen.com URL from the tool output.
 """,
     agent=Property_Fetcher,
+    callback=_make_task_callback(0),
 )
 
 property_research_task = Task(
@@ -46,4 +78,5 @@ Produce clear, structured, and evidence-backed findings that can guide informed 
 All findings must be factual, verifiable, and presented in a professional, easy-to-digest format.
 """,
     agent=Property_Researcher,
+    callback=_make_task_callback(1),
 )
